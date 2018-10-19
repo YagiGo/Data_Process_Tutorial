@@ -1,6 +1,6 @@
 import datetime
 import time
-
+""""
 timeExample_1 = "1999-12-31 27:49:23"
 timeExample_2 = "2000-01-01 03:49:23"
 
@@ -44,3 +44,6 @@ def convert24HTo30H(time):
 
 print(convert30Hto24H(timeExample_1))
 print(convert24HTo30H(timeExample_2))
+"""
+timestamp_example = 1507987087
+print(time.localtime(timestamp_example))

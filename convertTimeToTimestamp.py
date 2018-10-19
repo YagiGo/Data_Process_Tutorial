@@ -41,42 +41,29 @@ def convert24HTo30H(time):
         # 把改了时间的时间再合并
         new_time = ":".join(record_time) # [27,13,14]->27:13:14
         return new_date + " " + new_time # 输出1999-12-31 27：13：14
-
-
-
-
-
-
 client = MongoClient("localhost", 27017)
 db = client['user-data']
 
-user_collection = db["user-collection"]  # 里面存了每个用户对应的ID
-
-for user in user_collection.find():
-
-    # 把数据中的useragent变换成ID，和dividingDara中的user_identification一致
-    user_identification = str(uuid.uuid5(uuid.NAMESPACE_DNS, user["_id"]))
-    user_browsing_history = db[user_identification]
-    for browsing_history in user_browsing_history.find():
-        # 把时间格式从121314转成12:13:14
-        browsing_time = browsing_history["time"]
-        browsing_time = (":").join([browsing_time[0:2], browsing_time[2:4], browsing_time[4:6]])
-        # 把时间和日期合并，把格式转换成2018-10-13 12:13:14
-        formatted_time = browsing_history["date"] + " " + browsing_time
-        # print("变换前的时间： " + formatted_time)
-        hour_of_day = int(formatted_time[11:13])
-        if(int(formatted_time[11:13]) <= 23):
+raw_data_collection = db["raw_data"]  # 往初始数据中加入时间戳
+for raw_data in raw_data_collection.find():
+    # print(raw_data)
+    # 把时间格式从121314转成12:13:14
+    raw_data_time = raw_data["time"]
+    raw_data_time = (":").join([raw_data_time[0:2], raw_data_time[2:4], raw_data_time[4:6]])
+    # 把时间和日期合并，把格式转换成2018-10-13 12:13:14
+    formatted_time = raw_data["date"] + " " + raw_data_time
+    hour_of_day = int(formatted_time[11:13])
+    if(int(formatted_time[11:13]) <= 23):
             # 没有在24点-28点之间，可以直接转成时间戳
             timestamp = time.mktime(datetime.datetime.strptime(formatted_time, "%Y-%m-%d %H:%M:%S").timetuple())
             # print("变换后的时间戳：" + str(timestamp))
-        else:
-            # 24点-28点之间，先转成24点再转成时间戳
-            print(formatted_time," 用了傻逼的30小时时间制，需要转换")
-            converted_time = convert30Hto24H(formatted_time)
-            print("转换后时间: ", converted_time)
-            timestamp = time.mktime(converted_time.timetuple())
-            print("\n")
-            user_browsing_history.update(
-                {"_id": browsing_history["_id"]},
-                {"$set": {"timestamp": timestamp}}
-            )
+    else:
+        # 24点-28点之间，先转成24点再转成时间戳
+        print(formatted_time," 用了傻逼的30小时时间制，需要转换")
+        converted_time = convert30Hto24H(formatted_time)
+        print("转换后时间: ", converted_time)
+        timestamp = time.mktime(converted_time.timetuple())
+        print("\n")
+    raw_data_collection.update(
+        {"_id": raw_data["_id"]},
+        {"$set": {"timestamp": timestamp}})
