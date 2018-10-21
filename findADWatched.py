@@ -47,22 +47,23 @@ def matchingCMAndUser(start_point, end_point):
                         "cm_timestamp": single_cm_data["timestamp"]
                     }
                     cm_user_match_collection.insert_one(cm_user_watch_document)
+                    print("插入成功")
         else:
             break
 
 #  把一个任务分成八部分，分给八个核
-pool = multiprocessing.Pool(processes=8)
 client = MongoClient("localhost", 27017)
 tv_watch_data_collection = client["all-tv-orgn-data"]["raw_data"]
 tv_watch_data_collection_size = tv_watch_data_collection.count()
-chunck_size = int(tv_watch_data_collection_size / 30)
+chunck_size = int(tv_watch_data_collection_size / 8)
 if __name__ == "__main__":
-    pool = multiprocessing.Pool(processes=30)
+
+    pool = multiprocessing.Pool(processes=8)
     for i in range(30):
         pool.apply_async(matchingCMAndUser, args=(i*chunck_size, (i+1)*chunck_size))
     pool.close()
     pool.join()
-
+    # matchingCMAndUser(0, chunck_size)
 
 
 
