@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 # sphinx_gallery_thumbnail_number = 2
 client = MongoClient("localhost", 27017)
-db = client['user-data']
+db = client['all-web-data']
 raw_data_collection = db["raw_data"]
 
 

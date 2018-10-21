@@ -1,5 +1,6 @@
 from pymongo import MongoClient
 import uuid # 用来生成用户ID
+from progressbar import *
 
 # 用来生成时间戳
 import time
@@ -42,7 +43,8 @@ def convert24HTo30H(time):
         new_time = ":".join(record_time) # [27,13,14]->27:13:14
         return new_date + " " + new_time # 输出1999-12-31 27：13：14
 client = MongoClient("localhost", 27017)
-db = client['user-data']
+"""
+db = client['all-web-data']
 
 raw_data_collection = db["raw_data"]  # 往初始数据中加入时间戳
 for raw_data in raw_data_collection.find():
@@ -67,3 +69,78 @@ for raw_data in raw_data_collection.find():
     raw_data_collection.update(
         {"_id": raw_data["_id"]},
         {"$set": {"timestamp": timestamp}})
+"""
+"""
+# CM部分
+db = client["all-cm-data"]
+raw_data_collection = db["raw_data"]
+pbar = ProgressBar().start()
+for raw_data in raw_data_collection.find():
+    # print(raw_data)
+    # 把时间格式从121314转成12:13:14
+    raw_data_start_time = raw_data["start_time"].zfill(6)
+    # 把时间和日期合并，把格式转换成2018-10-13 12:13:14
+    formatted_date = "20" + raw_data["date"]
+    formatted_time = formatted_date + " " + (":").join([raw_data_start_time[0:2], raw_data_start_time[2:4], raw_data_start_time[4:6]])
+    hour_of_day = int(formatted_time[11:13])
+    if(int(formatted_time[11:13]) <= 23):
+            # 没有在24点-28点之间，可以直接转成时间戳
+            timestamp = time.mktime(datetime.datetime.strptime(formatted_time, "%Y-%m-%d %H:%M:%S").timetuple())
+            # print("变换后的时间戳：" + str(timestamp))
+    else:
+        # 24点-28点之间，先转成24点再转成时间戳
+        print(formatted_time," 用了傻逼的30小时时间制，需要转换")
+        converted_time = convert30Hto24H(formatted_time)
+        print("转换后时间: ", converted_time)
+        timestamp = time.mktime(converted_time.timetuple())
+        print("\n")
+    raw_data_collection.update(
+        {"_id": raw_data["_id"]},
+        {"$set": {"timestamp": timestamp,
+                  "start_time": raw_data_start_time,
+                  "date": formatted_date}})
+pbar.stop()
+"""
+# TV接触数据
+db = client["all-tv-orgn-data"]
+raw_data_collection = db["raw_data"]
+widgets = ['Progress: ',Percentage(), ' ', Bar('#'),' ', Timer(),
+           ' ', ETA(), ' ', FileTransferSpeed()]
+document_count = raw_data_collection.count()
+pbar = ProgressBar(widgets=widgets, maxval=document_count).start()
+index = 1
+for raw_data in raw_data_collection.find():
+    print("正在处理第{}个，共有{}个".format(index, document_count))
+    index += 1
+    # 把时间格式从1834转换为183400
+    raw_data_start_time = raw_data["start_time"].zfill(4) + "00"
+    raw_data_end_time = raw_data["end_time"].zfill(4) + "00"
+    # 把时间和日期合并
+    formatted_start_time = raw_data["date"] + " " + (":").join([raw_data_start_time[0:2], raw_data_start_time[2:4], raw_data_start_time[4:6]])
+    formatted_end_time = raw_data["date"] + " " + (":").join([raw_data_end_time[0:2], raw_data_end_time[2:4], raw_data_end_time[4:6]])
+    if(int(formatted_start_time[11:13]) <= 23 and int(formatted_end_time[11:13]) <=23):
+        # 开始时间和结束时间都是0-23点
+        start_timestamp = time.mktime(datetime.datetime.strptime(formatted_start_time, "%Y-%m-%d %H:%M:%S").timetuple())
+        end_timestamp = time.mktime(datetime.datetime.strptime(formatted_end_time, "%Y-%m-%d %H:%M:%S").timetuple())
+    elif(int(formatted_start_time[11:13]) > 23 and int(formatted_end_time[11:13]) <= 23):
+        # 开始时间是24-27点，结束时间是0-23点
+        formatted_start_time = str(convert30Hto24H(formatted_start_time))
+        start_timestamp = time.mktime(datetime.datetime.strptime(formatted_start_time, "%Y-%m-%d %H:%M:%S").timetuple())
+        end_timestamp = time.mktime(datetime.datetime.strptime(formatted_end_time, "%Y-%m-%d %H:%M:%S").timetuple())
+    elif(int(formatted_start_time[11:13]) <=23 and int(formatted_end_time[11:13]) > 23):
+        formatted_end_time = str(convert30Hto24H((formatted_end_time)))
+        start_timestamp = time.mktime(datetime.datetime.strptime(formatted_start_time, "%Y-%m-%d %H:%M:%S").timetuple())
+        end_timestamp = time.mktime(datetime.datetime.strptime(formatted_end_time, "%Y-%m-%d %H:%M:%S").timetuple())
+    else:
+        #开始时间和结束时间都是24-27点
+        formatted_start_time = str(convert30Hto24H(formatted_start_time))
+        formatted_end_time = str(convert30Hto24H(formatted_end_time))
+        start_timestamp = time.mktime(datetime.datetime.strptime(formatted_start_time, "%Y-%m-%d %H:%M:%S").timetuple())
+        end_timestamp = time.mktime(datetime.datetime.strptime(formatted_end_time, "%Y-%m-%d %H:%M:%S").timetuple())
+    last_time = end_timestamp - start_timestamp
+    raw_data_collection.update(
+        {"_id": raw_data["_id"]},
+        {"$set": {"start_timestamp": start_timestamp,
+                  "end_timestamp": end_timestamp,
+                  "last_time": last_time}})
+pbar.stop()
