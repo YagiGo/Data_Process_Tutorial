@@ -13,9 +13,13 @@ raw_data_collection = db["raw_data"]
 def count_access_time(dbCollection):
     # 创建一个24*31的矩阵，计算十月份的每一天的每一个小时的访问总量，用来画热点图
     access_time_counter = np.zeros((24, 31))
+    month = str(input("输入要分析的月份（1-12）："))
     for access_history in dbCollection.find():
         formatted_time = time.localtime(access_history["timestamp"])
-        access_time_counter[formatted_time.tm_hour - 1, formatted_time.tm_mday - 1] += 1
+        print(formatted_time.tm_mon)
+        if(str(formatted_time.tm_mon) == month):
+            print("Recording")
+            access_time_counter[formatted_time.tm_hour - 1, formatted_time.tm_mday - 1] += 1
         min_value, max_value = access_time_counter.min(), access_time_counter.max()
     return (access_time_counter - min_value) / (max_value - min_value)  # 矩阵归一化
 
@@ -44,7 +48,7 @@ access_date = ["Day1", "Day2", "Day3", "Day4", "Day5", "Day6", "Day7", "Day8", "
                "Day11", "Day12", "Day13", "Day14", "Day15", "Day16", "Day17", "Day18", "Day19", "Day20",
                "Day21", "Day22", "Day23", "Day24", "Day25", "Day26", "Day27", "Day28", "Day29", "Day30",
                "Day31"]
-access_time = ["2400", "2500", "2600", "2700", "0400", "0500", "0600", "0700", "0800", "0900", "1000",
+access_time = ["2400", "2500", "2600", "2700", "2800", "0500", "0600", "0700", "0800", "0900", "1000",
                "1100", "1200", "1300", "1400", "1500", "1600", "1700", "1800", "1900", "2000", "2100", "2200", "2300"]
 
 generate_heatmap(access_date, access_time, raw_data_collection)
