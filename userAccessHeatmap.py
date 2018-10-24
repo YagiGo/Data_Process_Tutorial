@@ -1,7 +1,7 @@
 from pymongo import MongoClient
 import numpy as np
 import time
-import matplotlib
+# import matplotlib as plt
 import matplotlib.pyplot as plt
 
 # sphinx_gallery_thumbnail_number = 2
@@ -30,7 +30,7 @@ def generate_heatmap(access_date, access_time, db_collection):
     access_time_counter = count_access_time(db_collection)
     print(access_time_counter)
     fig, ax = plt.subplots()  # 图表分成坐标轴和图两部分
-    ax.imshow(access_time_counter, interpolation="nearest", vmin=0)  # 用imshow画热点图
+    im = ax.imshow(access_time_counter, interpolation="nearest", vmin=0)  # 用imshow画热点图
     ax.set_xticks(np.arange(len(access_date)))  # 设置x轴的范围，这里是日期长度，31天
     ax.set_yticks(np.arange(len(access_time)))  # 设置y轴的范围，这里是一天的长度，24小时
     ax.set_xticklabels(access_date)  # x轴上加标签
@@ -41,6 +41,7 @@ def generate_heatmap(access_date, access_time, db_collection):
     ax.set_title("Internet Access Rush Hour Heatmap")  # 设置图标标题
     for edge, spine in ax.spines.items():
         spine.set_visible(False)  # 去除网格，改为True可以增加网格显示
+    plt.colorbar(im)
     plt.show()
 
 
@@ -51,7 +52,7 @@ access_date = ["Day1", "Day2", "Day3", "Day4", "Day5", "Day6", "Day7", "Day8", "
 access_time = ["2400", "2500", "2600", "2700", "2800", "0500", "0600", "0700", "0800", "0900", "1000",
                "1100", "1200", "1300", "1400", "1500", "1600", "1700", "1800", "1900", "2000", "2100", "2200", "2300"]
 
-generate_heatmap(access_date, access_time, raw_data_collection)
+generate_heatmap(access_date, access_time, raw_data_collection)  # Run the code here
 
 """
 date = ["Jan", "F", "lettuce", "asparagus",
