@@ -1,13 +1,12 @@
 #  查出有哪些广告被用户看见了
 from pymongo import MongoClient
-from progressbar import *
 import multiprocessing # 用多进程优化速度
 
 
 def matchingCMAndUser(start_point, end_point):
     print("第{}进程正在工作".format(multiprocessing.current_process()))
     print("从{}出发到{}条数据".format(start_point, end_point))
-    client = MongoClient("localhost", 27017)
+    client = MongoClient("192.168.96.208", 27017)
     cm_data_collection = client["all-cm-data"]["raw_data"]
     tv_watch_data_collection = client["all-tv-orgn-data"]["raw_data"]
 
@@ -27,6 +26,7 @@ def matchingCMAndUser(start_point, end_point):
             end_timestamp = single_tv_watch_data["end_timestamp"]
             for single_cm_data in cm_data_collection.find():
                 if start_timestamp <= single_cm_data["timestamp"] <= end_timestamp and single_tv_watch_data["TV_station_code"] == single_cm_data["TV_station_code"]:
+                    print("FIND MATCH")
                     cm_user_watch_document = {
                         "user_watch_date": single_tv_watch_data["date"],
                         "user_watch_data_SEQ": single_tv_watch_data["data_SEQ"],
@@ -46,19 +46,19 @@ def matchingCMAndUser(start_point, end_point):
                         "cm_tv_station_code": single_cm_data["TV_station_code"],
                         "cm_timestamp": single_cm_data["timestamp"]
                     }
+                    print(cm_user_watch_document)
                     cm_user_match_collection.insert_one(cm_user_watch_document)
                     print("插入成功")
         else:
             break
 
 #  把一个任务分成八部分，分给八个核
-client = MongoClient("localhost", 27017)
+client = MongoClient("192.168.96.208", 27017)
 tv_watch_data_collection = client["all-tv-orgn-data"]["raw_data"]
 tv_watch_data_collection_size = tv_watch_data_collection.count()
-chunck_size = int(tv_watch_data_collection_size / 8)
+chunck_size = int(tv_watch_data_collection_size / 30)
 if __name__ == "__main__":
-
-    pool = multiprocessing.Pool(processes=8)
+    pool = multiprocessing.Pool(processes=30)
     for i in range(30):
         pool.apply_async(matchingCMAndUser, args=(i*chunck_size, (i+1)*chunck_size))
     pool.close()

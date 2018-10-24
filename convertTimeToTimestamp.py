@@ -1,6 +1,6 @@
 from pymongo import MongoClient
 import uuid # 用来生成用户ID
-from progressbar import *
+import multiprocessing as mp
 
 # 用来生成时间戳
 import time
@@ -42,7 +42,7 @@ def convert24HTo30H(time):
         # 把改了时间的时间再合并
         new_time = ":".join(record_time) # [27,13,14]->27:13:14
         return new_date + " " + new_time # 输出1999-12-31 27：13：14
-client = MongoClient("localhost", 27017)
+client = MongoClient("192.168.96.208", 27017)
 """
 db = client['all-web-data']
 
@@ -102,45 +102,62 @@ for raw_data in raw_data_collection.find():
 pbar.stop()
 """
 # TV接触数据
+def add_timestamp_to_tv_orgn_data(start_point, end_point):
+    print("第{}进程正在工作".format(mp.current_process()))
+    print("从{}出发到{}条数据".format(start_point, end_point))
+    client = MongoClient("192.168.96.208", 27017)
+    db = client["all-tv-orgn-data"]
+    raw_data_collection = db["raw_data"]
+
+    document_count = raw_data_collection.count()
+    index = 1
+    for raw_data in raw_data_collection.find():
+        if start_point <= index < end_point:
+            print("Process No.{}正在处理第{}个，共有{}个".format(mp.current_process, index, document_count))
+            index += 1
+            # 把时间格式从1834转换为183400
+            raw_data_start_time = raw_data["start_time"].zfill(4) + "00"
+            raw_data_end_time = raw_data["end_time"].zfill(4) + "00"
+            # 把时间和日期合并
+            formatted_start_time = raw_data["date"] + " " + (":").join([raw_data_start_time[0:2], raw_data_start_time[2:4], raw_data_start_time[4:6]])
+            formatted_end_time = raw_data["date"] + " " + (":").join([raw_data_end_time[0:2], raw_data_end_time[2:4], raw_data_end_time[4:6]])
+            if(int(formatted_start_time[11:13]) <= 23 and int(formatted_end_time[11:13]) <=23):
+                # 开始时间和结束时间都是0-23点
+                start_timestamp = time.mktime(datetime.datetime.strptime(formatted_start_time, "%Y-%m-%d %H:%M:%S").timetuple())
+                end_timestamp = time.mktime(datetime.datetime.strptime(formatted_end_time, "%Y-%m-%d %H:%M:%S").timetuple())
+            elif(int(formatted_start_time[11:13]) > 23 and int(formatted_end_time[11:13]) <= 23):
+                # 开始时间是24-27点，结束时间是0-23点
+                formatted_start_time = str(convert30Hto24H(formatted_start_time))
+                start_timestamp = time.mktime(datetime.datetime.strptime(formatted_start_time, "%Y-%m-%d %H:%M:%S").timetuple())
+                end_timestamp = time.mktime(datetime.datetime.strptime(formatted_end_time, "%Y-%m-%d %H:%M:%S").timetuple())
+            elif(int(formatted_start_time[11:13]) <=23 and int(formatted_end_time[11:13]) > 23):
+                formatted_end_time = str(convert30Hto24H((formatted_end_time)))
+                start_timestamp = time.mktime(datetime.datetime.strptime(formatted_start_time, "%Y-%m-%d %H:%M:%S").timetuple())
+                end_timestamp = time.mktime(datetime.datetime.strptime(formatted_end_time, "%Y-%m-%d %H:%M:%S").timetuple())
+            else:
+                #开始时间和结束时间都是24-27点
+                formatted_start_time = str(convert30Hto24H(formatted_start_time))
+                formatted_end_time = str(convert30Hto24H(formatted_end_time))
+                start_timestamp = time.mktime(datetime.datetime.strptime(formatted_start_time, "%Y-%m-%d %H:%M:%S").timetuple())
+                end_timestamp = time.mktime(datetime.datetime.strptime(formatted_end_time, "%Y-%m-%d %H:%M:%S").timetuple())
+            last_time = end_timestamp - start_timestamp
+            raw_data_collection.update(
+                {"_id": raw_data["_id"]},
+                {"$set": {"start_timestamp": start_timestamp,
+                          "end_timestamp": end_timestamp,
+                          "last_time": last_time}})
+
+
 db = client["all-tv-orgn-data"]
 raw_data_collection = db["raw_data"]
-widgets = ['Progress: ',Percentage(), ' ', Bar('#'),' ', Timer(),
-           ' ', ETA(), ' ', FileTransferSpeed()]
+
 document_count = raw_data_collection.count()
-pbar = ProgressBar(widgets=widgets, maxval=document_count).start()
-index = 1
-for raw_data in raw_data_collection.find():
-    print("正在处理第{}个，共有{}个".format(index, document_count))
-    index += 1
-    # 把时间格式从1834转换为183400
-    raw_data_start_time = raw_data["start_time"].zfill(4) + "00"
-    raw_data_end_time = raw_data["end_time"].zfill(4) + "00"
-    # 把时间和日期合并
-    formatted_start_time = raw_data["date"] + " " + (":").join([raw_data_start_time[0:2], raw_data_start_time[2:4], raw_data_start_time[4:6]])
-    formatted_end_time = raw_data["date"] + " " + (":").join([raw_data_end_time[0:2], raw_data_end_time[2:4], raw_data_end_time[4:6]])
-    if(int(formatted_start_time[11:13]) <= 23 and int(formatted_end_time[11:13]) <=23):
-        # 开始时间和结束时间都是0-23点
-        start_timestamp = time.mktime(datetime.datetime.strptime(formatted_start_time, "%Y-%m-%d %H:%M:%S").timetuple())
-        end_timestamp = time.mktime(datetime.datetime.strptime(formatted_end_time, "%Y-%m-%d %H:%M:%S").timetuple())
-    elif(int(formatted_start_time[11:13]) > 23 and int(formatted_end_time[11:13]) <= 23):
-        # 开始时间是24-27点，结束时间是0-23点
-        formatted_start_time = str(convert30Hto24H(formatted_start_time))
-        start_timestamp = time.mktime(datetime.datetime.strptime(formatted_start_time, "%Y-%m-%d %H:%M:%S").timetuple())
-        end_timestamp = time.mktime(datetime.datetime.strptime(formatted_end_time, "%Y-%m-%d %H:%M:%S").timetuple())
-    elif(int(formatted_start_time[11:13]) <=23 and int(formatted_end_time[11:13]) > 23):
-        formatted_end_time = str(convert30Hto24H((formatted_end_time)))
-        start_timestamp = time.mktime(datetime.datetime.strptime(formatted_start_time, "%Y-%m-%d %H:%M:%S").timetuple())
-        end_timestamp = time.mktime(datetime.datetime.strptime(formatted_end_time, "%Y-%m-%d %H:%M:%S").timetuple())
-    else:
-        #开始时间和结束时间都是24-27点
-        formatted_start_time = str(convert30Hto24H(formatted_start_time))
-        formatted_end_time = str(convert30Hto24H(formatted_end_time))
-        start_timestamp = time.mktime(datetime.datetime.strptime(formatted_start_time, "%Y-%m-%d %H:%M:%S").timetuple())
-        end_timestamp = time.mktime(datetime.datetime.strptime(formatted_end_time, "%Y-%m-%d %H:%M:%S").timetuple())
-    last_time = end_timestamp - start_timestamp
-    raw_data_collection.update(
-        {"_id": raw_data["_id"]},
-        {"$set": {"start_timestamp": start_timestamp,
-                  "end_timestamp": end_timestamp,
-                  "last_time": last_time}})
-pbar.stop()
+chunck_size = int(document_count / 8)
+if __name__ == "__main__":
+    pool = mp.Pool(processes=8)
+    for i in range(30):
+        pool.apply_async(add_timestamp_to_tv_orgn_data, args=(i*chunck_size, (i+1)*chunck_size))
+    pool.close()
+    pool.join()
+    # matchingCMAndUser(0, chunck_size)
+    # add_timestamp_to_tv_orgn_data(0, document_count)
