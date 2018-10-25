@@ -6,7 +6,7 @@ import multiprocessing # 用多进程优化速度
 def matchingCMAndUser(start_point, end_point):
     print("第{}进程正在工作".format(multiprocessing.current_process()))
     print("从{}出发到{}条数据".format(start_point, end_point))
-    client = MongoClient("192.168.96.208", 27017)
+    client = MongoClient("localhost", 27017)
     cm_data_collection = client["all-cm-data"]["raw_data"]
     tv_watch_data_collection = client["all-tv-orgn-data"]["raw_data"]
 
@@ -26,7 +26,7 @@ def matchingCMAndUser(start_point, end_point):
             end_timestamp = single_tv_watch_data["end_timestamp"]
             for single_cm_data in cm_data_collection.find():
                 if start_timestamp <= single_cm_data["timestamp"] <= end_timestamp and single_tv_watch_data["TV_station_code"] == single_cm_data["TV_station_code"]:
-                    print("FIND MATCH")
+                    print("Process No.{} FIND MATCH".format(multiprocessing.current_process()))
                     cm_user_watch_document = {
                         "user_watch_date": single_tv_watch_data["date"],
                         "user_watch_data_SEQ": single_tv_watch_data["data_SEQ"],
@@ -48,12 +48,12 @@ def matchingCMAndUser(start_point, end_point):
                     }
                     print(cm_user_watch_document)
                     cm_user_match_collection.insert_one(cm_user_watch_document)
-                    print("插入成功")
+                    # print("插入成功")
         else:
             break
 
 #  把一个任务分成八部分，分给八个核
-client = MongoClient("192.168.96.208", 27017)
+client = MongoClient("localhost", 27017)
 tv_watch_data_collection = client["all-tv-orgn-data"]["raw_data"]
 tv_watch_data_collection_size = tv_watch_data_collection.count()
 chunck_size = int(tv_watch_data_collection_size / 30)

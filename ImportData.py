@@ -5,14 +5,14 @@ import sys
 csv.field_size_limit(sys.maxsize)
 import pandas as pd
 client = MongoClient("localhost", 27017)
-db = client['all-cm-brand']
+db = client['all-tv-orgn-data']
 
 # 创建一个文件放初始数据
 raw_data_collection = db["raw_data"]
 result = []
 
 # 用CSV读csv
-with open("CM_TV_Advertiser.csv",  encoding="utf-8") as csv_file:
+with open("tv_orgn_p_cv_03.csv",  encoding="utf-8") as csv_file:
     for row in csv.DictReader(csv_file):
         result.append(row)
 

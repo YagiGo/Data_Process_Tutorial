@@ -155,7 +155,7 @@ document_count = raw_data_collection.count()
 chunck_size = int(document_count / 8)
 if __name__ == "__main__":
     pool = mp.Pool(processes=8)
-    for i in range(30):
+    for i in range(8):
         pool.apply_async(add_timestamp_to_tv_orgn_data, args=(i*chunck_size, (i+1)*chunck_size))
     pool.close()
     pool.join()

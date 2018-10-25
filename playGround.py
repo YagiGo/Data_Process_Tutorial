@@ -45,5 +45,11 @@ def convert24HTo30H(time):
 print(convert30Hto24H(timeExample_1))
 print(convert24HTo30H(timeExample_2))
 """
-timestamp_example = 1507987087
-print(time.localtime(timestamp_example))
+# timestamp_example = 1530937943
+# print(time.localtime(timestamp_example))
+import matplotlib.pyplot as plt
+test_graph = [[0,1],[1,2]]
+fig, ax = plt.subplots()  # 图表分成坐标轴和图两部分
+im = ax.imshow(test_graph, interpolation="nearest", vmin=0)  # 用imshow画热点图
+plt.colorbar(im)
+plt.show()
