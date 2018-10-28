@@ -12,10 +12,10 @@ end_time = "2018-4-1 04:59:59"
 start_timestamp = time.mktime(datetime.datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S").timetuple())
 end_timestamp = time.mktime(datetime.datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S").timetuple())
 overall_data_size = original_data.estimated_document_count()
-index = 1
+index = 0
 # print(start_timestamp, end_timestamp)
 for single_document in original_data.find():
     if start_timestamp <= single_document["timestamp"] <= end_timestamp:
+        index += 1
         print("找到第{}条数据符合时间区分，共有{}条数据".format(index, overall_data_size))
         divided_data.insert_one(single_document)
-        index += 1

@@ -22,7 +22,7 @@ json_data = json.loads(json.dumps(result))
 
 # raw_data_collection.remove()  # 先删除所有数据
 print("开始载入数据。。。")
-raw_data_collection.insert(json_data)  # 加载数据进数据库
+raw_data_collection.insert(json_data)  # 加载数据进数据库q
 print("数据载入完成")
 
 
