@@ -19,8 +19,8 @@ def matchingCMAndUser(collectionName):
     tv_watch_data_collection_size = tv_watch_data_collection.count()
     index = 0
     # print(tv_watch_data_collection)
-    try:
-        for single_tv_watch_data in tv_watch_data_collection.find():
+    for single_tv_watch_data in tv_watch_data_collection.find():
+        try:
             index += 1
             print("{}进程正在对第{}条电视观看数据进行匹配，共有{}条数据".format(multiprocessing.current_process(), index, tv_watch_data_collection_size))
             start_timestamp = single_tv_watch_data["start_timestamp"]
@@ -50,8 +50,8 @@ def matchingCMAndUser(collectionName):
                     print(cm_user_watch_document)
                     cm_user_match_collection.insert_one(cm_user_watch_document)
                     # print("插入成功")
-    except:
-        print("插入出错，无视此条记录")
+        except:
+            print("插入出错，无视此条记录")
 
 #  把一个任务分成八部分，分给八个核
 if __name__ == "__main__":
