@@ -19,7 +19,7 @@ def matchingCMAndUser(collectionName):
     tv_watch_data_collection_size = tv_watch_data_collection.count()
     index = 0
     # print(tv_watch_data_collection)
-    tv_watch_data_cursor = tv_watch_data_collection.find(no_cursor_timeout=True)
+    tv_watch_data_cursor = tv_watch_data_collection.find().batch_size(10)
     for single_tv_watch_data in tv_watch_data_cursor:
         try:
             index += 1
@@ -55,7 +55,6 @@ def matchingCMAndUser(collectionName):
             cm_cursor.close()
         except:
             print("插入出错，无视此条记录")
-    tv_watch_data_cursor.close()
 
 #  把一个任务分成八部分，分给八个核
 if __name__ == "__main__":
