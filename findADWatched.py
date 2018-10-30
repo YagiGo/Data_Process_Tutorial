@@ -19,13 +19,15 @@ def matchingCMAndUser(collectionName):
     tv_watch_data_collection_size = tv_watch_data_collection.count()
     index = 0
     # print(tv_watch_data_collection)
-    for single_tv_watch_data in tv_watch_data_collection.find():
+    tv_watch_data_cursor = tv_watch_data_collection.find(no_cursor_timeout=True)
+    for single_tv_watch_data in tv_watch_data_cursor:
         try:
             index += 1
             print("{}进程正在对第{}条电视观看数据进行匹配，共有{}条数据".format(multiprocessing.current_process(), index, tv_watch_data_collection_size))
             start_timestamp = single_tv_watch_data["start_timestamp"]
             end_timestamp = single_tv_watch_data["end_timestamp"]
-            for single_cm_data in cm_data_collection.find():
+            cm_cursor = cm_data_collection.find(no_cursor_timeout=True)
+            for single_cm_data in (cm_cursor):
                 if start_timestamp <= single_cm_data["timestamp"] <= end_timestamp and single_tv_watch_data["TV_station_code"] == single_cm_data["TV_station_code"]:
                     # print("Process No.{} FIND MATCH".format(multiprocessing.current_process()))
                     cm_user_watch_document = {
@@ -50,8 +52,10 @@ def matchingCMAndUser(collectionName):
                     print(cm_user_watch_document)
                     cm_user_match_collection.insert_one(cm_user_watch_document)
                     # print("插入成功")
+            cm_cursor.close()
         except:
             print("插入出错，无视此条记录")
+    tv_watch_data_cursor.close()
 
 #  把一个任务分成八部分，分给八个核
 if __name__ == "__main__":
@@ -63,7 +67,7 @@ if __name__ == "__main__":
     """
     # pool.close()
     # pool.join()
-    matchingCMAndUser(sub_collections[3])
+    matchingCMAndUser(sub_collections[0])
 
 
 
