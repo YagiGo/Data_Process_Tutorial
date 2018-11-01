@@ -47,8 +47,9 @@ def matchingCMAndUser(collectionName):
                     "user_watch_start_timestamp": single_tv_watch_data["start_timestamp"],
                     "user_watch_last_time": single_tv_watch_data["last_time"]
                 }},
-                {"$out": "watchedCM"}
+                {"$out": "watchedCM_tmp"}
             ])
+            cm_user_match_collection.insert_many(list(cm_data_db["watchedCM_tmp"]))
 
 
             """
