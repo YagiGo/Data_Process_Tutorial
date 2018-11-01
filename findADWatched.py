@@ -1,7 +1,9 @@
 #  查出有哪些广告被用户看见了
 from pymongo import MongoClient
 import multiprocessing # 用多进程优化速度
-
+import time
+import datetime
+import traceback
 
 def matchingCMAndUser(collectionName):
     print("在{}中进行匹配".format(collectionName))
@@ -10,7 +12,7 @@ def matchingCMAndUser(collectionName):
     cm_data_collection = client["all-cm-data"]["raw_data"]
     # tv_watch_data_collection = client["all-tv-orgn-data"]["raw_data"]
     tv_watch_data_collection = client["all-tv-orgn-data"][collectionName]
-
+    cm_data_db = client["cm-data-test-db"]
     cm_user_match_db = client["cm_user_match"]
     cm_user_match_collection = cm_user_match_db["raw_data"]
 
@@ -26,6 +28,30 @@ def matchingCMAndUser(collectionName):
             print("{}进程正在对第{}条电视观看数据进行匹配，共有{}条数据".format(multiprocessing.current_process(), index, tv_watch_data_collection_size))
             start_timestamp = single_tv_watch_data["start_timestamp"]
             end_timestamp = single_tv_watch_data["end_timestamp"]
+            watched_date = single_tv_watch_data["date"] + " " + "00:00:00"
+            timestamp = time.mktime(datetime.datetime.strptime(watched_date, "%Y-%m-%d %H:%M:%S").timetuple())
+            print(timestamp)
+            cm_matching_collection = cm_data_db[str(timestamp)]
+            cm_matching_collection.aggregate([
+                {"$match": {"timestamp": {"$gt": start_timestamp, "$lt": end_timestamp}}},
+                {"$addFields": {
+                    "user_watch_date": single_tv_watch_data["date"],
+                    "user_watch_data_SEQ": single_tv_watch_data["data_SEQ"],
+                    "user_watch_day_of_week": single_tv_watch_data["day of week"],
+                    "user_watch_personal_num": single_tv_watch_data["personal_num"],
+                    "user_watch_household_num": single_tv_watch_data["household_num"],
+                    "user_watch_TVNo": single_tv_watch_data["TVNo"],
+                    "user_watch_TV_station_code": single_tv_watch_data["TV_station_code"],
+                    "user_watch_data_category": single_tv_watch_data["data_category"],
+                    "user_watch_end_timestamp": single_tv_watch_data["end_timestamp"],
+                    "user_watch_start_timestamp": single_tv_watch_data["start_timestamp"],
+                    "user_watch_last_time": single_tv_watch_data["last_time"]
+                }},
+                {"$out": "watchedCM"}
+            ])
+
+
+            """
             cm_cursor = cm_data_collection.find(no_cursor_timeout=True)
             for single_cm_data in (cm_cursor):
                 if start_timestamp <= single_cm_data["timestamp"] <= end_timestamp and single_tv_watch_data["TV_station_code"] == single_cm_data["TV_station_code"]:
@@ -53,7 +79,9 @@ def matchingCMAndUser(collectionName):
                     cm_user_match_collection.insert_one(cm_user_watch_document)
                     # print("插入成功")
             cm_cursor.close()
-        except:
+            """
+        except Exception as e:
+            traceback.print_exc()
             print("插入出错，无视此条记录")
     tv_watch_data_cursor.close()
 
@@ -67,7 +95,7 @@ if __name__ == "__main__":
     """
     # pool.close()
     # pool.join()
-    matchingCMAndUser(sub_collections[0])
+    matchingCMAndUser(sub_collections[3])
 
 
 
