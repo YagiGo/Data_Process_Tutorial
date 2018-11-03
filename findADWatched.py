@@ -49,7 +49,7 @@ def matchingCMAndUser(collectionName):
                 }},
                 {"$out": "watchedCM_tmp"}
             ])
-            cm_user_match_collection.insert_many(list(cm_data_db["watchedCM_tmp"]))
+            cm_user_match_collection.insert_many(list(cm_data_db["watchedCM_tmp"].find()))
 
 
             """
@@ -82,8 +82,8 @@ def matchingCMAndUser(collectionName):
             cm_cursor.close()
             """
         except Exception as e:
-            traceback.print_exc()
-            print("插入出错，无视此条记录")
+            # traceback.print_exc()
+            print("此记录无匹配结果")
 
 #  把一个任务分成八部分，分给八个核
 if __name__ == "__main__":
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     """
     # pool.close()
     # pool.join()
-    matchingCMAndUser(sub_collections[3])
+    matchingCMAndUser(sub_collections[1])
 
 
 
