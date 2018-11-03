@@ -23,14 +23,26 @@ def sortDataIntoCollection():
 
 def sortDataWithinCollection():
     # 然后把广告数据按时间戳排序
+    # TEST HERE!
     collection_names = cm_data_test_db.collection_names()
-    collection_size = len(collection_names)
+    print(collection_names)
+    current_number = 0
     for collection_name in collection_names:
-        cm_data_test_db[collection_name].create_index({"timestamp"})
-
-
-    return
+        current_number += 1
+        print("正在处理第{}个，共有{}个".format(current_number, len(collection_names)))
+        cm_data_collection = cm_data_test_db[collection_name]
+        for single_data in cm_data_collection.find():
+            index = int((single_data["timestamp"] - float(collection_name)) / 15)
+            cm_data_collection.update(
+                {"_id": single_data["_id"]},
+                {"$set": {"broadcast_index": index}})
+    """
+    sorted_documents = list(cm_data_test_db["1506870000.0"].find().sort("timestamp", 1))
+    cm_data_test_db["1506870000.0"].drop()
+    cm_data_test_db["1506870000.0"].insert_many(sorted_documents)
+    """
 
 
 if __name__ == "__main__":
-    sortDataIntoCollection()
+    # sortDataIntoCollection()
+    sortDataWithinCollection()
