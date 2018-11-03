@@ -4,6 +4,7 @@ import multiprocessing # 用多进程优化速度
 import time
 import datetime
 import traceback
+import progressbar
 
 def matchingCMAndUser(collectionName):
     print("在{}中进行匹配".format(collectionName))
@@ -21,17 +22,24 @@ def matchingCMAndUser(collectionName):
     tv_watch_data_collection_size = tv_watch_data_collection.count()
     index = 0
     # print(tv_watch_data_collection)
+    total_number = tv_watch_data_collection.estimated_document_count()
     tv_watch_data_cursor = tv_watch_data_collection.find().batch_size(20)
+    bar = progressbar.ProgressBar(max_value=tv_watch_data_collection_size)
     for single_tv_watch_data in tv_watch_data_cursor:
+        bar.update(index)
+        index += 1
         try:
-            index += 1
-            print("{}进程正在对第{}条电视观看数据进行匹配，共有{}条数据".format(multiprocessing.current_process(), index, tv_watch_data_collection_size))
+            # print("{}进程正在对第{}条电视观看数据进行匹配，共有{}条数据".format(multiprocessing.current_process(), index, tv_watch_data_collection_size))
             start_timestamp = single_tv_watch_data["start_timestamp"]
             end_timestamp = single_tv_watch_data["end_timestamp"]
             watched_date = single_tv_watch_data["date"] + " " + "00:00:00"
             timestamp = time.mktime(datetime.datetime.strptime(watched_date, "%Y-%m-%d %H:%M:%S").timetuple())
-            print(timestamp)
+            # tv_start_watch_index = int((single_tv_watch_data["start_timestamp"] - timestamp) / 15)
+            # tv_stop_watch_index = int((single_tv_watch_data["end_timestamp"] - timestamp) / 15)
+            # print(tv_start_watch_index, tv_stop_watch_index)
             cm_matching_collection = cm_data_db[str(timestamp)]
+            # cm_data_collection.find({"timestamp": {"$gt": start_timestamp, "&lt": end_timestamp}})
+
             cm_matching_collection.aggregate([
                 {"$match": {"timestamp": {"$gt": start_timestamp, "$lt": end_timestamp}}},
                 {"$addFields": {
@@ -82,20 +90,21 @@ def matchingCMAndUser(collectionName):
             cm_cursor.close()
             """
         except Exception as e:
+            continue
             # traceback.print_exc()
-            print("此记录无匹配结果")
-
+            # print("此记录无匹配结果")
 #  把一个任务分成八部分，分给八个核
 if __name__ == "__main__":
     pool = multiprocessing.Pool(processes=4)
+
     sub_collections = ["sub_collection_00", "sub_collection_01", "sub_collection_02", "sub_collection_03"]
     """
     for collection_name in sub_collections:
         pool.apply_async(matchingCMAndUser, args=(collection_name,))
+    pool.close()
+    pool.join()
     """
-    # pool.close()
-    # pool.join()
-    matchingCMAndUser(sub_collections[1])
+    matchingCMAndUser(sub_collections[0])
 
 
 
