@@ -1,4 +1,4 @@
-from pymongo import MongoClient
+from pymongo import *
 import time
 import datetime
 
@@ -42,7 +42,18 @@ def sortDataWithinCollection():
     cm_data_test_db["1506870000.0"].insert_many(sorted_documents)
     """
 
+def createIndex():
+    collection_names = cm_data_test_db.collection_names()
+    current_number = 0
+    for collection_name in collection_names:
+        current_number += 1
+        print("正在处理第{}个，共有{}个".format(current_number, len(collection_names)))
+        if collection_name == "watchedCM" or collection_name == "watchedCM_tmp":
+            continue
+        cm_data_test_db[collection_name].create_index("timestamp")
+
 
 if __name__ == "__main__":
     # sortDataIntoCollection()
-    sortDataWithinCollection()
+    # sortDataWithinCollection()
+    createIndex()
