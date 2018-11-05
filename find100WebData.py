@@ -15,7 +15,9 @@ for collection_name in collection_names:
         {"$match": {"household_num": collection_name}},
         {"$sout": "web_data_tmp"}
     ])
-    test_100_web_data[collection_name].insert_many(list(web_data_db["web_data_tmp"]))
+    data_by_household_num = list(web_data_db["web_data_tmp"].find())
+    if(len(data_by_household_num)):
+        test_100_web_data[collection_name].insert_many(data_by_household_num)
     index += 1
 
 
