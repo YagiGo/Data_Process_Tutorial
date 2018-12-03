@@ -1,8 +1,8 @@
 # coding: utf-8
 # 本模块按照需求寻找数据
-from DBInteraction.DumpDataIntoDB import DataInteractModule
+from DataAnalysisNTT.DBInteraction.DumpDataIntoDB import DataInteractModule
 import progressbar, uuid
-
+import copy
 class DataSearchModule(DataInteractModule):
     def __init__(self):
         super(DataSearchModule, self).__init__()
@@ -34,6 +34,8 @@ class DataSearchModule(DataInteractModule):
         self.motorcar_brand_code_list = self.findBrnadCode()
         self.household_number_list = []
         self.household_number_Processed_list = []
+        self.brand_without_webdata = {}
+        self.brand_with_webdata = {}
         self.function_explanation = {
             "findMotorcarWebData": "寻找确认汽车品牌关键字相关的网络浏览数据",
             "findMotorCarAdWatchedDataByBrand": "寻找匹配汽车品牌广告接触数据",
@@ -233,9 +235,9 @@ class DataSearchModule(DataInteractModule):
             self.db_name = "all-tv-orgn-data"
 
         if len(self.collection_name) == 0:
-            print("默认collection名")
             self.collection_name = "divided_data"
         if self.dbNameCheckPassed() and self.collectionNameCheckPassed():
+            all_tv_orgn_db = self.client[self.db_name]
             all_tv_orgn_data = self.client[self.db_name][self.collection_name]  # 半年的电视接触数据
 
 
@@ -262,7 +264,7 @@ class DataSearchModule(DataInteractModule):
             all_motorcar_web_data = self.client[self.db_name]
 
         # 导出到新的数据库
-        self.userInteract(description_of_db="输入要导入的按household number分类的网络数据的数据库名称(若空白则默认为motorcar_ad_match_by_household_num)：",
+        self.userInteract(description_of_db="输入要导出的存在网络数据的广告接触数据的数据库名称(若空白则默认为motorcar_ad_match_by_household_num)：",
                           has_input_file=False,
                           has_collection=False)
 
@@ -273,7 +275,20 @@ class DataSearchModule(DataInteractModule):
         if self.dbNameCheckPassed():
             motorcar_ad_match_by_household_num = self.client[self.db_name]
 
-        household_num_list = all_motorcar_web_data.collection_names()
+        self.userInteract(description_of_db="输入要导出的不存在网络数据的广告接触数据的数据库名称(若空白则默认为motorcar_ad_match_by_household_num_without_webdata)：",
+                          has_input_file=False,
+                          has_collection=False)
+
+        # self.db_name = str(input("输入要导入的按household number分类的网络数据的数据库名称(若空白则默认为motorcar_ad_match_by_household_num)："))
+        if len(self.db_name) == 0:
+            # 默认数据库
+            self.db_name = "motorcar_ad_match_by_household_num_without_webdata"
+        if self.dbNameCheckPassed():
+            motorcar_ad_match_by_household_num_without_webdata = self.client[self.db_name]
+        household_num_list = []
+        for collection_name in all_motorcar_web_data.collection_names():
+            if collection_name.split("_")[0] not in household_num_list:
+                household_num_list.append(collection_name.split("_")[0])
         household_num_processed_list = []
         for collection_name in motorcar_ad_match_by_household_num.collection_names():
             # print(collection_name)
@@ -281,64 +296,135 @@ class DataSearchModule(DataInteractModule):
             if collection_name.split("_")[0] not in household_num_processed_list:
                 household_num_processed_list.append(collection_name.split("_")[0])
 
+        for collection_name in motorcar_ad_match_by_household_num_without_webdata.collection_names():
+            # print(collection_name)
+            # household_num = collection_name.split("_")
+            if collection_name.split("_")[0] not in household_num_processed_list:
+                household_num_processed_list.append(collection_name.split("_")[0])
+
+        # 找到每个household number没有网络数据的品牌
+        for collection_name in all_motorcar_web_data.collection_names():
+            brand_name = "_".join(collection_name.split("_")[1:])
+            try:
+                self.brand_with_webdata[collection_name.split("_")[0]].append(brand_name)
+            except:
+                self.brand_with_webdata.update({collection_name.split("_")[0]:[brand_name]}) # fixed!
+                # BUG! WILL LOST FIRST DATA: FIXED
+
+        for household_num in household_num_list:
+            brand_without_webdata = copy.deepcopy(self.motorcar_brand_name_list)  # Create a deep copy
+            self.brand_without_webdata.update({household_num: brand_without_webdata})
+            # print(household_num, self.brand_without_webdata[household_num])
+            for brand_name in self.brand_with_webdata[household_num]:
+                # print(brand_name, household_num)
+                # print(self.brand_without_webdata[household_num])
+                self.brand_without_webdata[household_num].remove(brand_name)
+
         # print(household_num_processed_list)
         # print(len(household_num_list), household_num_list)
+
         # 进度条
         bar2 = progressbar.ProgressBar(max_value=len(household_num_list))
         index = 0
+        print(household_num_processed_list)
         for household_num in household_num_list:
+            # print("Length of Brand with webdata{}\nLegth of Brand without webdata{}".format(len(self.brand_with_webdata[household_num]), len(self.brand_without_webdata[household_num])))
             # print(household_num.split("_")[0])
             bar2.update(index)
             index += 1
-            if household_num.split("_")[0] in household_num_processed_list:
+            global start_searching_timestamp #aki debug
+            if household_num in household_num_processed_list:
                 # print("该household number已被处理")
                 continue
             else:
-                print(household_num)
-                start_searching_timestamp = all_motorcar_web_data[household_num].find_one()["timestamp"]
-                # print(type(start_searching_timestamp))
-                # print(household_num)
-                # print(list(all_tv_orgn_data["divided_data"].find()))
-                all_tv_orgn_data["divided_data"].aggregate([
-                    {"$match": {"household_num": household_num.split("_")[0],
-                                "end_timestamp": {"$lt": start_searching_timestamp}}},
-                    {"$out": "matching_TV_data_tmp"}
-                ])
-                print(list(all_tv_orgn_data["matching_TV_data_tmp"].find()))
-                for single_tv_watch_data in all_tv_orgn_data["matching_TV_data_tmp"].find():
-                    # print("_".join(household_num.split("_")[1:]))
-                    # 用后面的品牌名去匹配
-                    cm_by_brand["_".join(household_num.split("_")[1:])].aggregate([
-                        {"$match": {"timestamp": {"$gt": single_tv_watch_data["start_timestamp"],
-                                                  "$lt": single_tv_watch_data["end_timestamp"]}}},
-                        {"$addFields": {
-                            "user_watch_date": single_tv_watch_data["date"],
-                            "user_watch_data_SEQ": single_tv_watch_data["data_SEQ"],
-                            "user_watch_day_of_week": single_tv_watch_data["day of week"],
-                            "user_watch_personal_num": single_tv_watch_data["personal_num"],
-                            "user_watch_household_num": single_tv_watch_data["household_num"],
-                            "user_watch_TVNo": single_tv_watch_data["TVNo"],
-                            "user_watch_TV_station_code": single_tv_watch_data["TV_station_code"],
-                            "user_watch_data_category": single_tv_watch_data["data_category"],
-                            "user_watch_end_timestamp": single_tv_watch_data["end_timestamp"],
-                            "user_watch_start_timestamp": single_tv_watch_data["start_timestamp"],
-                            "user_watch_last_time": single_tv_watch_data["last_time"]
-                        }},
-                        {"$out": "watchedCM_tmp"}
+                for i in range(len(self.brand_with_webdata[household_num])):
+                    print("Search With WebData")
+                    # print(household_num)
+                    print("With WebData ", household_num+"_"+self.brand_with_webdata[household_num][i])
+                    start_searching_timestamp = all_motorcar_web_data[household_num+"_"+self.brand_with_webdata[household_num][i]].find_one()["timestamp"]
+
+                    all_tv_orgn_data.aggregate([
+                        {"$match": {"household_num": household_num,
+                                    "end_timestamp": {"$lt": start_searching_timestamp}}},
+                        {"$out": "matching_TV_data_tmp"}
                     ])
-                    if (len(list(cm_by_brand["watchedCM_tmp"].find())) != 0):
-                        for single_document in cm_by_brand["watchedCM_tmp"].find():
-                            tmp = single_document
-                            tmp["_id"] = uuid.uuid1()
-                            cm_by_brand["watchedCM_tmp_id_reset"].insert_one(tmp)
-                        # 每个householdnumber 按照品牌的广告接触数据
-                        motorcar_ad_match_by_household_num[household_num].insert_many(
-                            list(cm_by_brand["watchedCM_tmp_id_reset"].find()))
-                        cm_by_brand["watchedCM_tmp_id_reset"].drop()
+                    # print(type(start_searching_timestamp))
+                    # print(household_num)
+                    # print(all_tv_orgn_data.find())
 
+                    # print(list(all_tv_orgn_db["matching_TV_data_tmp"].find()))
+                    for single_tv_watch_data in all_tv_orgn_db["matching_TV_data_tmp"].find():
+                        # print("_".join(household_num.split("_")[1:]))
+                        # 用后面的品牌名去匹配
+                        cm_by_brand[self.brand_with_webdata[household_num][i]].aggregate([
+                            {"$match": {"timestamp": {"$gt": single_tv_watch_data["start_timestamp"],
+                                                      "$lt": single_tv_watch_data["end_timestamp"]}}},
+                            {"$addFields": {
+                                "user_watch_date": single_tv_watch_data["date"],
+                                "user_watch_data_SEQ": single_tv_watch_data["data_SEQ"],
+                                "user_watch_day_of_week": single_tv_watch_data["day of week"],
+                                "user_watch_personal_num": single_tv_watch_data["personal_num"],
+                                "user_watch_household_num": single_tv_watch_data["household_num"],
+                                "user_watch_TVNo": single_tv_watch_data["TVNo"],
+                                "user_watch_TV_station_code": single_tv_watch_data["TV_station_code"],
+                                "user_watch_data_category": single_tv_watch_data["data_category"],
+                                "user_watch_end_timestamp": single_tv_watch_data["end_timestamp"],
+                                "user_watch_start_timestamp": single_tv_watch_data["start_timestamp"],
+                                "user_watch_last_time": single_tv_watch_data["last_time"]
+                            }},
+                            {"$out": "watchedCM_tmp_with_webdata"}
+                        ])
+                        if (len(list(cm_by_brand["watchedCM_tmp_with_webd664ata"].find())) != 0):
+                            for single_document in cm_by_brand["watchedCM_tmp_with_webdata"].find():
+                                tmp = single_document
+                                tmp["_id"] = uuid.uuid1()
+                                cm_by_brand["watchedCM_tmp_id_reset"].insert_one(tmp)
+                            # 每个householdnumber 按照品牌的广告接触数据
+                            motorcar_ad_match_by_household_num[household_num+"_"+self.brand_with_webdata[household_num][i]].insert_many(
+                                list(cm_by_brand["watchedCM_tmp_id_reset"].find()))
+                            cm_by_brand["watchedCM_tmp_id_reset"].drop()
 
+                for i in range(len(self.brand_without_webdata[household_num])):
+                    # print(household_num, self.brand_without_webdata[household_num])
+                    # print("Search Without WebData")
+                    print("No WebDta Search")
+                    print("No WebData: ", household_num + "_" + self.brand_without_webdata[household_num][i])
+                    all_tv_orgn_data.aggregate([
+                        {"$match": {"household_num": household_num}},
+                        {"$out": "matching_TV_data_tmp"}
+                    ])
+                    for single_tv_watch_data in all_tv_orgn_db["matching_TV_data_tmp"].find():
+                        # print(single_tv_watch_data)
+                        cm_by_brand[self.brand_without_webdata[household_num][i]].aggregate([
+                            {"$match": {"timestamp": {"$gt": single_tv_watch_data["start_timestamp"],
+                                                      "$lt": single_tv_watch_data["end_timestamp"]}}},
+                            {"$addFields": {
+                                "user_watch_date": single_tv_watch_data["date"],
+                                "user_watch_data_SEQ": single_tv_watch_data["data_SEQ"],
+                                "user_watch_day_of_week": single_tv_watch_data["day of week"],
+                                "user_watch_personal_num": single_tv_watch_data["personal_num"],
+                                "user_watch_household_num": single_tv_watch_data["household_num"],
+                                "user_watch_TVNo": single_tv_watch_data["TVNo"],
+                                "user_watch_TV_station_code": single_tv_watch_data["TV_station_code"],
+                                "user_watch_data_category": single_tv_watch_data["data_category"],
+                                "user_watch_end_timestamp": single_tv_watch_data["end_timestamp"],
+                                "user_watch_start_timestamp": single_tv_watch_data["start_timestamp"],
+                                "user_watch_last_time": single_tv_watch_data["last_time"]
+                            }},
+                            {"$out": "watchedCM_tmp_without_webdata"}
+                        ])
+                        # print(cm_by_brand["watchedCM_tmp"].find())
+                        if (len(list(cm_by_brand["watchedCM_tmp_without_webdata"].find())) != 0):
+                            for single_document in cm_by_brand["watchedCM_tmp_without_webdata"].find():
+                                tmp = single_document
+                                tmp["_id"] = uuid.uuid1()
+                                cm_by_brand["watchedCM_tmp_id_reset"].insert_one(tmp)
+                            motorcar_ad_match_by_household_num_without_webdata[household_num+"_"+self.brand_without_webdata[household_num][i]].insert_many(list(cm_by_brand["watchedCM_tmp_id_reset"].find()))
+                            # print(cm_by_brand["watchedCM_tmp_id_reset"])
+                            cm_by_brand["watchedCM_tmp_id_reset"].drop()
 
 if __name__ == "__main__":
     data_search = DataSearchModule()
-    data_search.findMotorcarWebData()
-    # print(DataSearchModule().findMotorcarWebData())
+    # data_search.findMotorcarWebData()
+    #print(DataSearchModule().findMotorcarWebData())
+    data_search.findMotorCarAdWatchedDataByBrand()
